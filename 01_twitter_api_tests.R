@@ -7,12 +7,13 @@ packages = c(
     # Work Horses
     "dplyr"
     
-    # Twitter API
-    , "rtweet"    
+    # API requests and json
+    , "httr" 
+    , "jsonlite"
 
     # Interactive Maps
-    , "tmaptools"
-    , "leaflet"   
+    # , "tmaptools"
+    # , "leaflet"   
 
     # Core
     , "tidyverse"
@@ -28,37 +29,50 @@ package.check <- lapply(packages, FUN = function(x) {
     }
 })
 
-source("scripts/geocode_for_free.R") # geocoding script
+# source("scripts/geocode_for_free.R") # geocoding script
 
 
 # 1.0 ACCOUNT SETUP -----
 
-# Twitter Developer Account and App Setup
-# Follow these Instructions: https://rtweet.info/articles/auth.html
+# Set environment token !!run in console!!
+# Sys.setenv(BEARER_TOKEN = "token")
 
-token <- create_token(
-    
-    # Replace with your Twitter app name
-    app             = "rtweets_api_con", 
-    
-    # Replace with your App API Key 
-    consumer_key    = config::get("twitter-api-key", file = "../config.yml"), 
-    
-    # Replace with your App Secret Key
-    consumer_secret = config::get("twitter-secret", file = "../config.yml") 
-)
+# Twitter Developer Account and App Setup
+# Follow these Instructions: https://developer.twitter.com/en/docs/tutorials/getting-started-with-r-and-v2-of-the-twitter-api
+
+bearer_token <- Sys.getenv("BEARER_TOKEN")
+headers <- c(`Authorization` = sprintf('Bearer %s', bearer_token))
 
 
 # 2.0 SEARCH TWEETS ----
 # - Poll tweet history that has happened over n-tweets
 
-# 2.1 search_tweets()
-rtweet::search_tweets(
-    q = "#covid19",      # Search query
-    n = 100,             # Number of results
-    lang = "en",         # Language
-    include_rts = FALSE  # Don't include retweets if want unique tweets
+# 2.1 search tweet archive
+## set parameters
+params = list(
+    `query` = 'from:USAA -is:retweet -is:reply',
+    `max_results` = '99',
+    `tweet.fields` = 'created_at,lang,conversation_id'
 )
+
+# send query with httr
+response <- httr::GET(url = 'https://api.twitter.com/2/tweets/search/recent'
+                      , httr::add_headers(.headers=headers)
+                      , query = params)
+
+# save query results to dataframe
+recent_search_body  <-
+    content(
+        response,
+        as = 'parsed',
+        type = 'application/json',
+        simplifyDataFrame = TRUE
+    )
+
+# take a look
+View(recent_search_body$data)
+recent_search_body$data %>% glimpse()
+
 
 # tweets_covid %>% write_rds(path = "data/tweets_covid.rds")
 
